@@ -1,0 +1,121 @@
+---
+title: "Tidyverse - Box Plot of Salaries of Top 6 Majors"
+output: rmarkdown::github_document 
+---
+
+## Authors 
+
+- **Initial** - Romerl Elizes
+
+```{r, echo = FALSE}
+#knitr::opts_chunk$set(collapse=TRUE, comment="##", fig.retina=2, fig.path = "./images")
+```
+## Summary
+
+In this interesting exercise, I used the college-majors 538 datasets [COL] and used the recent-grads.csv for the basis of my initial contribution. Using my previous knowledge of DATA 606 Statistics and usage of tidverse libraries dplyr and ggplot2, I developed a Simple Box Plot displaying the Salary distributions of the top 6 College Majors. Since the mean and the standard deviation was not available in the data set, I had to use good, old-fashioned Statistics to calculate the mean and the standard deviation base on a sample of the data given its size, minimum value, and maximum value for each college major.
+
+## Load Libraries
+```{r load-libraries, eval=TRUE, message=FALSE, warning=FALSE}
+library(stringr)
+library(XML)
+library(RCurl)
+library(rlist)
+library(RJSONIO)
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+
+options(knitr.table.format = "html")
+```
+
+## Define Functions
+
+I defined some functions to help me calculate the mean and the standard deviation of the data. Since we do not know the mean and the standard deviation for row of data, I had to create a rough calculation. Given the size, 25th percentile, and 75th percentile values, I used them to create a random set of numbers using the runif function. Since we do not know the minimum value and the maximum value of the data, I had to use the 25th and 75th percentile values as the them respectively. The biggest caveat in using these functions is that the mean and sd functions will generate random set of numbers. That means that the mean and standard deviation may not be accurate based on the random sample. 
+```{r calculateFunctions, eval=TRUE, fig.width = 10, fig.height = 4, message=FALSE, warning=FALSE }
+calculateMean <- function(Size, minval, maxval) {
+    calcvalue <- mean(runif(Size, minval, maxval))
+    return(calcvalue)
+}
+
+calculateSD <- function(Size, minval, maxval) {
+    calcvalue <- sd(runif(Size, minval, maxval))
+    return(calcvalue)
+}
+
+```
+
+## Work Being Done
+
+For this part of the assignment, I did the following steps:
+
+- I read the raw file of recent-grads.csv and outputed to a table.
+
+- I used kable to display the resulting table.
+
+- I stored the Major, Median Salary, Size, 25th Percentile, and 75th Percentile values in a smaller data frame.
+
+- I sorted the data frame by descending median salary and only used the top 6 salaries for this assignment.
+
+- I added Mean and SD variables and used the mapply function to calculate the mean and standard deviation based on the sample size of each row.
+
+- I used kable to display the resulting table.
+
+- I created a brand new data frame that creates a normalized distribution of 100 points of data based on the calculated mean and standard deviation for each of the top 6 majors by salary.
+
+- I created a box chart that shows a visual representation of the data.
+
+
+```{r load-data, eval=TRUE, fig.width = 10, fig.height = 8, message=FALSE, warning=FALSE }
+urlfile <- "https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/recent-grads.csv"
+rgData <- read.table(file = urlfile, header = TRUE, sep = ",")
+rgData %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>% 
+  scroll_box(width="100%",height="300px")
+
+dfChartData <- data.frame(Major = rgData$Major, Median = rgData$Median, Size = rgData$Sample_size, Minval = rgData$P25th, Maxval = rgData$P75th) #, SD = (((rgData$P75th-rgData$P25th)/2)/(0.67*2)))
+dfChartData <- dfChartData[order(-dfChartData$Median),]
+top6Data <- head(dfChartData, n=6)
+
+top6Data$Mean <- mapply(calculateMean,top6Data$Size, top6Data$Minval, top6Data$Maxval)
+top6Data$SD <- mapply(calculateSD,top6Data$Size, top6Data$Minval, top6Data$Maxval)
+  
+top6Data %>% 
+  kable() %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>% 
+  scroll_box(width="100%",height="300px")
+
+data <- data.frame(
+  Petroleum     = rnorm(100,mean=top6Data$Mean[1],sd=top6Data$SD[1]),
+  Mineral       = rnorm(100,mean=top6Data$Mean[2],sd=top6Data$SD[2]),
+  Metallurgical = rnorm(100,mean=top6Data$Mean[3],sd=top6Data$SD[3]),
+  Naval         = rnorm(100,mean=top6Data$Mean[4],sd=top6Data$SD[4]),
+  Chemcial      = rnorm(100,mean=top6Data$Mean[5],sd=top6Data$SD[5]),
+  Nuclear       = rnorm(100,mean=top6Data$Mean[6],sd=top6Data$SD[6])
+)
+
+boxplot(data, ylab = "Salaries", xlab="Engineering Majors",
+        las = 2, col = c("red","blue","orange","green","yellow","brown"))
+```
+
+## Rooms for Improvement
+
+Certainly there could be room for improvement.
+
+- Is it possible to create a function that uses the same runif function and be able to calculate the mean and standard deviation of the resulting data set? The mean and standard deviation would be more aligned.
+
+- I was hoping to create a dual axis bar and line chart to show salaries on the first Y axis and unemployment on the second Y axis.
+
+- I also investigated the possibility of using a circular bar chart to show the distribution of male and female students by major.
+
+
+## References
+
+**[COL] Recent Grads CSV File from 538 website.** Retrieved from: https://github.com/fivethirtyeight/data/blob/master/college-majors/recent-grads.csv
+
+**[UNI] The Uniform Distribution.** Retrieved from Website: https://www.rdocumentation.org/packages/stats/versions/3.5.1/topics/Uniform
+
+**[VER]** Veronesi, F. **Box-plot with R - Tutorial.** Retrieved from Website: https://www.r-bloggers.com/box-plot-with-r-tutorial/
