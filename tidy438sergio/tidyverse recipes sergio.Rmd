@@ -1,0 +1,153 @@
+---
+title: "Tidyverse vs fivethirtyeight Recipes Sergio"
+author: "Sergio Ortega Cruz"
+date: "November 16, 2018"
+output:
+   html_document:
+     toc: yes
+     toc_depth: 6
+     toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##The fivethirtyeight R Package
+
+The objective of this homework is generating a "recipe" for Tidyverse while using a Fivethirtyeight(538) dataset and collaborate using GitHub. I would like to take a different approach in a sense of explaining the use of a package than can be useful for using and streamlining 538 datasets in a faster and more efficient way and already by itself is a tidyverse recipe while doing a comparisson between the two of them.
+
+FiveThirtyEight.com is a data-driven journalism website founded by Nate Silver and owned by Disney/ESPN that reports on politics, economics, sports, and other current events. FiveThirtyEight data used in many of their articles is accessible on their GitHub repository page https://github.com/fivethirtyeight/data . The fivethirtyeight R package goes one step further by making this data and its corresponding documentation easily accessible. The homepage for the fivethirtyeight R package can be found at https://fivethirtyeight-r.netlify.com/.
+
+##Basic Usage
+
+I'll be using couple of datasets from 538 identified in each section.The first thing is, if you haven't, install the fivethirtyeight package into your R development studio.The first dataset is the Bechdel test dataset that represents "How women are represented in movies."
+
+```{r fivethirty}
+library(fivethirtyeight)
+#Showing dataset bechdel
+head(bechdel)
+?bechdel
+```
+There's [around 107 datasets](https://cran.r-project.org/web/packages/fivethirtyeight/vignettes/fivethirtyeight.html) ready to be consumed.
+
+```{r dats}
+vignette("fivethirtyeight", package="fivethirtyeight")
+```
+
+###Naming conventions:
+
+One of the first examples is preprocess variable names. Let's consider the dataset from the Article "41% of Fliers thinkyou're rude if you recline your seat", i will access the dataset from the fivethirtyeight github [dataset repository](https://raw.githubusercontent.com/fivethirtyeight/data/master/flying-etiquette-survey/flying-etiquette.csv) in order to do Tidyverse in paralel with 538 package
+
+```{r load1}
+
+library(tidyverse)
+url<-"https://raw.githubusercontent.com/fivethirtyeight/data/master/flying-etiquette-survey/flying-etiquette.csv"
+flying_raw <- read_csv(url)
+colnames(flying_raw)[1:5]
+flying_raw2 <- flying_raw
+#Contiinuation of the tidyverse recipe will be change column names for shorter more maneagable names
+colnames(flying_raw2)<- c("respondent_id", "gender", "age", "height", "children_under_18")
+#so this add serveral extra steps
+```
+We contrast this to the corresponding flying data frame in the fivethirtyeight package:
+
+```{r load2}
+
+library(fivethirtyeight)
+colnames(flying)[1:5]
+
+```
+
+One of the advantages of this package is that the tidy process is emmbedded in this package and will allow a clean start without a lot of effort
+
+For example, consider the following two ggplot() commands to generate the barplot in Figure to visualize the relationship between the two categorical variables of interest: using the raw data necessitates tick marks to access the variables, whereas using the latter data doesn't since they have been cleaned , white spaces extracted, chaged to lower case, etc.
+
+```{r graph}
+# Using raw data:
+ggplot(flying_raw, 
+       aes(x = `Do you have any children under 18?`, 
+           fill = `In general, is itrude to bring a baby on a plane?`)) +
+  geom_bar(position = "fill") +
+  labs(x = "Children under 18?", y = "Proportion", fill = "Is it rude?")
+
+# Using fivethirtyeight package data:
+ggplot(flying, aes(x = children_under_18, fill = baby)) +
+  geom_bar(position = "fill") +
+  labs(x = "Children under 18?", y = "Proportion", fill = "Is it rude?")
+```
+
+###Date management
+
+As an example of the importance of preprocessing dates, consider the data corresponding to the FiveThirtyEight article ["Some People Are Too Superstitious To Have A Baby On Friday The 13th"](https://raw.githubusercontent.com/fivethirtyeight/data/master/births/US_births_1994-2003_CDC_NCHS.csv). Load this data, filter for only those rows corresponding to 1999 births, and save this in a data frame US_births_1999_raw. The raw data is saved in a format that makes it difficult to create a time series plot or any data manipulation for that regard.
+
+```{r dates}
+url2<- "https://raw.githubusercontent.com/fivethirtyeight/data/master/births/US_births_1994-2003_CDC_NCHS.csv"
+library(tidyverse)
+US_births_1999_2003_raw <- read_csv(url2)
+US_births_1999_raw <- US_births_1999_2003_raw[US_births_1999_2003_raw$year == 1999, ]
+head(US_births_1999_raw)
+
+```
+When using the pre-processed US_births_1994_2003 data frame from the fivethirtyeight package we observe that there is a variable date, which can be treated as a numerical variable. Furthermore, the day of the week is indicated with more informative text rather that values between 1 and 7.
+
+```{r dates538}
+
+library(fivethirtyeight)
+US_births_1999 <- US_births_1994_2003[US_births_1994_2003$year == 1999, ]
+head(US_births_1999)
+
+```
+
+```{r plot}
+plot(US_births_1999$date, US_births_1999$births, type = "l",
+     xlab = "Date", ylab = "# of births")
+```
+Check the anomalous spike in the number of births that occured roughly a month before October 1st, 1999:
+
+```{r anomaly}
+
+head(US_births_1999[which.max(US_births_1999$births), ])
+
+```
+
+###Tidy Data Format
+
+One of the first experiences we had was data cleaning and transformation starting with how Wickham describes a dataset/data frame as being in tidy format if it satisfies the following criteria:
+
+-Each variable must have its own column.
+-Each observation must have its own row.
+-Each type of observational unit forms a table.
+
+For example, say we want to create a barplot comparing consumption of beer, spirits, and wine between the United States and France using the drinks dataset  (Chalabi 2014) The data is saved in "wide" format and thus cannot be used in the ggplot() function.
+
+```{r tidyformat}
+
+library(tidyverse)
+library(fivethirtyeight)
+drinks %>% 
+  filter(country %in% c("USA", "France"))
+
+```
+
+However, the help file for this dataset, accessible by typing ?drinks in the console, provides the gather() code necessary to convert this data into "tidy" format:
+
+```{r tidy2}
+
+drinks_tidy_US_FR <- drinks %>%
+  filter(country %in% c("USA", "France")) %>% 
+  gather(type, servings, -c(country, total_litres_of_pure_alcohol))
+drinks_tidy_US_FR
+
+```
+
+
+###Conclusions
+
+The 538 package allow you to save a lot of the tidy process directly from the library and with hundreds of datasets available, does this will be enough to stop using tidyverse, straight answer no, but will streamline certain tasks and the "swiss army knife" of tools that tidyverse still offer really powerful means for data analysis
+
+###Sources
+
+Albert y.Kim, Chester Ismay, et.al
+The fivethityeight R Package
+March 2,2018
