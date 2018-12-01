@@ -1,0 +1,135 @@
+---
+title: "Unearthing the Tidyverse: Exploring the Relationship between Fear of Earthquakes & Income"
+author: "Zachary Herold"
+date: "December 1, 2018"
+output:
+
+  prettydoc::html_pretty:
+    highlight: github
+    theme:  tactile
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(prettydoc)
+library(plyr)
+library("graphics")
+```
+
+### This is a study to determine if there is greater disaster awareness and fear aversity as income levels rise. In the process, we leverage tidyverse's mapvalues() function in plyr. 
+
+
+[https://fivethirtyeight.com/features/the-rock-isnt-alone-lots-of-people-are-worried-about-the-big-one/] (Fear of the Big One) 
+
+
+__We imported the earthquake_data.csv from fivethirtyeight.com into a dataframe in R. The variables of the data are listed here:__
+
+```{r}
+quake <- data.frame(read.table("https://raw.githubusercontent.com/fivethirtyeight/data/master/san-andreas/earthquake_data.csv", header = TRUE, sep = ","))
+names(quake)
+```
+
+__For this study, we will focus on variables 1, 2, 6, 7, 10, and 11, and first simplified the column names.__
+
+```{r}
+quake_df <- quake[c(1,2,6,10,11)]
+names(quake_df) <- c("worry_gen","worry_big","aware_andreas","income","region")
+knitr::kable(head(quake_df,10))
+```
+
+__Here we can see the breakdown of survey respondees by region:__
+
+```{r}
+knitr::kable(table(quake_df$region), width = 40)
+```
+
+__Here we can see the breakdown of survey respondees by income:__
+
+```{r}
+knitr::kable(table(quake_df$income), width = 40)
+
+```
+
+### Using plyr's mapvalues() function
+
+__To make the dataframe more compact, we replace the values of nominal variables with strictly ordinal ones according to level. The income level classifiers correspond to an upper bound and the survey results range from 1 (least worry & familiarity) to 5 (most extreme worry and familiarity).__
+
+```{r}
+lvl_worry_gen <- levels(quake_df$worry_gen)
+lvl_worry_big <- levels(quake_df$worry_big)
+lvl_andreas <- levels(quake_df$aware_andreas)
+lvl_income <- levels(quake_df$income)
+
+quake_df$worry_gen <- mapvalues(quake_df$worry_gen, from = lvl_worry_gen, to = c(5,1,2,3,4))
+quake_df$worry_big <- mapvalues(quake_df$worry_big, from = lvl_worry_big, to = c(5,1,2,3,4))
+quake_df$aware_andreas <- mapvalues(quake_df$aware_andreas, from = lvl_andreas, to = c(NA, 5,1,2,3,4))
+quake_df$income <- mapvalues(quake_df$income, from = lvl_income, to = c(NA, "10K","25K","125K","150K","175K","200K","top","50K","75K","100K", NA))
+```
+
+__We further clean the data by removing rows with null values or indefinite responses.__
+
+```{r}
+quake_df <- quake_df[complete.cases(quake_df),]
+```
+
+__Next, we re-order the levels to reflect their ordinal sequence.__
+
+```{r}
+income.groups <- list("10K","25K","50K","75K","100K","125K","150K","175K","200K","top")
+rating <- list("1","2","3","4","5")
+
+quake_df$income <- factor(quake_df$income, levels = income.groups)
+quake_df$worry_gen <- factor(quake_df$worry_gen, levels = rating)
+quake_df$worry_big <- factor(quake_df$worry_big, levels = rating)
+quake_df$aware_andreas <- factor(quake_df$aware_andreas, levels = rating)
+
+knitr::kable(head(quake_df,10))
+```
+
+
+__After ordering the qualitative factors and income levels, we create tables to be applied to the mosiacplot() function in the graphics package.__
+
+```{r}
+worry_gen_observed <- table(quake_df$income, quake_df$worry_gen, dnn=c("income","gen_fear_rating"))
+worry_big_observed <- table(quake_df$income, quake_df$worry_big, dnn=c("income","big_fear_rating"))
+aware_andreas_observed <- table(quake_df$income, quake_df$aware_andreas, dnn=c("income","andreas_aware_rating"))
+
+mosaicplot(worry_gen_observed, shade = TRUE, las=2,
+           main = "Fear of Earthquakes")
+mosaicplot(worry_big_observed, shade = TRUE, las=2,
+           main = "Fear of the Big One")
+mosaicplot(aware_andreas_observed, shade = TRUE, las=2,
+           main = "Awareness of the San Andreas Fault")
+```
+
+__The blue and purple boxes of the mosaic plot reveal strongly positive standardized residuals, which indicates an observed value far exceeding the expected value if variables were independent.__ 
+
+Our findings are:
+
+* People with less than $25K in income have disproportionately high general worry about , including "the Big One" (perhaps due to housing status);
+* People with less than $25K in income have disproportionately low awareness of the Andreas Fault (perhaps due to lower education level);
+* People with greater than $200K in income have disproportionately high awareness of the Andreas Fault (perhaps due to education level and real estate investment considerations);
+
+__Finally, we convert the tables into tidied dataframes, using the data.frame() function.__
+
+
+```{r}
+tidy1 <- data.frame(worry_gen_observed) 
+tidy1 <-`names<-`(tidy1, c("income","gen_fear_rating","gen_fear_freq"))
+
+knitr::kable(head(tidy1,10))
+
+tidy2 <- data.frame(worry_big_observed)
+tidy2 <-`names<-`(tidy2, c("income","big_fear_rating","big_fear_freq"))
+
+knitr::kable(head(tidy2,10))
+
+tidy3 <- data.frame(aware_andreas_observed)
+tidy3 <-`names<-`(tidy3, c("income","andreas_aware_rating","andreas_aware_freq"))
+
+knitr::kable(tail(tidy3,10))
+
+```
+
+
+
