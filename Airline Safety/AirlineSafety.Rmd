@@ -1,0 +1,53 @@
+---
+title: "Airline Safety Data"
+author: "Adam Douglas"
+date: "11/30/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Airline Data
+
+These data are courtesy of [fivethirtyeight](https://www.fivethirtyeight.com) and relates to their article titled, [*Should Travelers Avoid Flying Airlines That Have Had Crashes in the Past?*](http://fivethirtyeight.com/features/should-travelers-avoid-flying-airlines-that-have-had-crashes-in-the-past/).
+
+### Loading the Data
+The data are stored on [fivethirtyeight's github](https://github.com/fivethirtyeight/data/tree/master/airline-safety), so we will load it directly from that site:
+
+```{r load data, cache=TRUE}
+# Load from the Github URL
+airline <- read_csv(url("https://raw.githubusercontent.com/fivethirtyeight/data/master/airline-safety/airline-safety.csv"),col_types="cdiiiiii")
+
+# Look at the data
+glimpse(airline)
+```
+
+We have 8 variables in the raw data. Looking at them, however, we see that the data is not in a tidy format. Specifically, the incidents, accidents, and fatalities columns are variables, and the year ranges are observations.
+
+We can correct this quite easily using the `tidyr` package included as part of the `tidyverse`. Specifically, we want to use the `gather` function which, as its name implies, gathers columns into rows.
+
+```{r gather}
+air <- airline %>% gather(key = "measure", value = "val", -airline, -avail_seat_km_per_week)
+
+glimpse(air)
+```
+
+The above statement takes the columns we select (here, we selected all except `airline` and `avail_seat_km_per_week`) and transforms them so that the name of that column is populated in a new "key" column named `measure` and it's value is put into a new column named `val`.
+
+However we're not exactly where we want to be, as incidents, fatal accidents, and fatalities are all variables and should be in their own columns.
+
+```{r add_years}
+# First split years away from the variables
+air$year <- str_sub(air$measure,-5,-1)
+air$measure <- str_extract(air$measure,"[a-z|_]+(?![0-9])")
+
+# Now "spread" those variables into their own columns
+airTidy <- spread(air, measure, val)
+
+glimpse(airTidy)
+```
+
+Now it appears our dataset is tidy. Each row is an observation (airline and year range) and each column is a variable (seats per km, fatal accidents, fatalities, and incidents).
