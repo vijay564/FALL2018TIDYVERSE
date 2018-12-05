@@ -1,0 +1,150 @@
+---
+title: "TidyVerse - A Complete History of MLB"
+author: "Stephanie Roark"
+date: "12/5/2018"
+output: rmarkdown::github_document 
+---
+
+
+###America's Pastime
+
+Let's take a look at the complete history of Major League Baseball from 1871 to present.
+
+The MLB Complete History dataset contains two separate systems for rating teams; the simpler Elo ratings, used for The Complete History Of MLB, and the more involved — and confusingly named — "ratings" that are used in our MLB Predictions. This dataset contains an Elo-based rating system and predictive model for baseball that accounts for home-field advantage, margin of victory, park and era effects, travel, rest and — most importantly — starting pitchers.Elo is a simple way to rate competitors that can be tuned and customized endlessly to incorporate available data.
+
+For baseball fans, all the descriptions for the datasets can be found here:
+[How Our MLB Predictions Work](https://fivethirtyeight.com/features/how-our-mlb-predictions-work/)
+
+First, we load the data from [FiveThirtyEight.com]("https://data.fivethirtyeight.com/")
+
+```{r tidy data, eval=TRUE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(knitr)
+
+Url <- "https://projects.fivethirtyeight.com/mlb-api/mlb_elo.csv"
+MLBdata <- read.csv(file = Url, header = TRUE, sep = ",")
+kable(head(MLBdata))
+```
+
+What makes data tidy and clean?
+
+Tiday Data:
+
+1. Data Structures : data is organized in columns and rows with labels.
+2. Data Semantics : data is a collection of values, usually either numbers (if quantitative) or strings (if qualitative) and every value belongs to a variable and an observation. 
+3.  A dataset is messy or tidy depending on how rows, columns and tables are matched up with observations, variables and types.
+
+Or more simply put, tidy data means that each variable forms a column; each observation forms a row; each type of observational unit forms a table.
+
+5 Most common problems to find when tidying data:
+
+• Column headers are values, not variable names.
+• Multiple variables are stored in one column.
+• Variables are stored in both rows and columns.
+• Multiple types of observational units are stored in the same table.
+• A single observational unit is stored in multiple tables.
+
+Once the data is tidy, you need to clean it (just like a house can't be cleaned until everything is tidyied up.) Check the data for missing values, labels that make sense, errors, units, outliers, etc.
+
+Let's start by looking at the structure of the data and to see if there is any missing data:
+
+```{r str, eval=TRUE}
+#structure of the data - from this we can see that there are both numeric and categorical data
+str(MLBdata)
+
+#are there NA's in the data set
+sum(is.na(MLBdata))
+```
+
+We can see that the data consists mostly of numeric values and that there are quite a few NA's.
+
+Let's look to see if there is any missing data or "" values.
+
+```{r NAs, eval=TRUE}
+#let's look at one column to see if there are missing entries that do not show up as NA's
+MLBdata %>% 
+    count(playoff)
+
+#read the data back in in a different way to automatically convert "" to NA's
+#readr converts "" to NA's while reading in the data
+MLBdata <- readr::read_csv("https://projects.fivethirtyeight.com/mlb-api/mlb_elo.csv")
+sum(is.na(MLBdata))
+```
+
+Now, all of the empty spaces are NA's which helps when performing analysis.
+
+This dataset is already organized in columns and rows, but the names of the columns are confusing. So let's give the variables labels that are easier to understand.
+
+```{r colnames, eval=TRUE}
+# do the column names make sense
+colnames(MLBdata)
+# let's rename the columns so that we can understand their meaning
+newcolnames <- c("date", "season", "neutral", "playoff", "home_team", "away_team", 
+                 "home_pre-elo", "away_pre-elo", "home_probability", 
+                 "away_probability", "home_post-elo", "away_post-elo", 
+                 "home_pre-rating", "away_pre-rating", "home_pitcher", "away_pitcher", 
+                 "home_pitcher-rgs", "away_pitcher-rgs", "home_pitcher-adj",
+                 "away_pitcher-adj", "home_rating-probability", "away_rating-probability",
+                 "home_post-rating", "away_post-rating", "home_score", "away_score")
+
+colnames(MLBdata) <- newcolnames
+#now we have a better understanding of what each variable represents
+colnames(MLBdata)
+```
+
+Next let's look at the numeric values using skimr.
+
+```{r numerics, eval=TRUE}
+#let's look at summaries of the numeric columns
+MLBdata %>%
+    select_if(is.numeric) %>%
+    skimr::skim()
+#we can see that some variables are shown as numeric but are really ordinal, like season for example
+#what are the variables classified as
+
+```
+
+We can see from the histogram that some of the numeric values, like season for example, are really ordinal and not continuously numeric. We could change season to be not numeric(others too maybe) if this would help in analysis, but I will leave it for now.
+
+I want to see if the San Francisco Giants win more games home or away as I often hear announcers discussing teams struggling at one vs. another.
+
+Let's separate out the home games and the away games to see where they win more often. We will look at the net wins and losses for each season.
+
+```{r home_away, eval=TRUE}
+
+#create tables for giants home and giants away to see if they play better at either
+MLB_GiantsHome <- MLBdata  %>% 
+    filter(home_team == "SFG") %>%
+    mutate(sfg_win = ifelse(home_score > away_score, 1, 0)) %>%
+    group_by(season) %>%
+    summarise(home_wins = sum(sfg_win))
+
+
+MLB_GiantsAway <- MLBdata  %>% 
+    filter(away_team == "SFG") %>%
+    mutate(sfg_win = ifelse(away_score > home_score, 1, 0)) %>%
+    group_by(season) %>%
+    summarise(away_wins = sum(sfg_win))
+
+
+MLB_GiantsAll <- full_join(MLB_GiantsHome, MLB_GiantsAway, by="season") %>%
+    mutate(net_home_wins = home_wins - away_wins)
+
+kable(head(MLB_GiantsAll))
+```
+
+Now we will plot the net wins and losses by season to see where they win most often and if it's true that they might struggle to win at home.
+
+```{r plot, eval=TRUE}
+#create visualization for giants home and for giants away
+ggplot(MLB_GiantsAll, aes(season, net_home_wins) ) +
+    geom_step()
+```
+
+We can see from the plot of net wins per season, that there were 13 seasons where the San Francisco Giants did actually win more games away than at home. It could be interesting to investigate those seasons to understand why that may have occured.
+
+Also, further analysis could examine the net wins by proportion of games per year and the number of home games vs. away games accounted for.
+
+
+
+
