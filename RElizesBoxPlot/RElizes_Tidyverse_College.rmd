@@ -1,6 +1,7 @@
 ---
 title: "Tidyverse - Box Plot of Salaries of Top 6 Majors"
 output: rmarkdown::github_document 
+always_allow_html: yes
 ---
 
 ## Authors 

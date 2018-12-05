@@ -4,6 +4,7 @@ Tidyverse - Box Plot of Salaries of Top 6 Majors
 ## Authors
 
   - **Initial** - Romerl Elizes
+  - Second - Kevin Benson
 
 ## Summary
 
@@ -22839,13 +22840,13 @@ PETROLEUM ENGINEERING
 
 <td style="text-align:right;">
 
-110075.26
+109763.38
 
 </td>
 
 <td style="text-align:right;">
 
-8882.702
+8624.297
 
 </td>
 
@@ -22885,13 +22886,13 @@ MINING AND MINERAL ENGINEERING
 
 <td style="text-align:right;">
 
-74111.65
+70699.31
 
 </td>
 
 <td style="text-align:right;">
 
-13365.277
+12707.897
 
 </td>
 
@@ -22931,13 +22932,13 @@ METALLURGICAL ENGINEERING
 
 <td style="text-align:right;">
 
-66791.38
+77322.16
 
 </td>
 
 <td style="text-align:right;">
 
-24175.412
+3328.704
 
 </td>
 
@@ -22977,13 +22978,13 @@ NAVAL ARCHITECTURE AND MARINE ENGINEERING
 
 <td style="text-align:right;">
 
-62043.15
+59689.15
 
 </td>
 
 <td style="text-align:right;">
 
-10433.101
+10720.367
 
 </td>
 
@@ -23023,13 +23024,13 @@ CHEMICAL ENGINEERING
 
 <td style="text-align:right;">
 
-62946.55
+63159.08
 
 </td>
 
 <td style="text-align:right;">
 
-7549.100
+6995.322
 
 </td>
 
@@ -23069,13 +23070,13 @@ NUCLEAR ENGINEERING
 
 <td style="text-align:right;">
 
-80876.59
+77594.34
 
 </td>
 
 <td style="text-align:right;">
 
-16503.145
+15596.226
 
 </td>
 
@@ -23117,6 +23118,114 @@ Certainly there could be room for improvement.
 
   - I also investigated the possibility of using a circular bar chart to
     show the distribution of male and female students by major.
+
+## Additional Work - by Kevin Benson
+
+To extend Romerl’s work, I added a linear regression analysis to see
+whether there is any relationship between salaries and unemployment
+rates in the dataset. From economic intuition, we would expect that
+unemployment rate and salary should be inversely related, i.e., lower
+unemployment rates should be associated with higher salaries, and vice
+versa. Let’s see if this is true for the college majors dataset.
+
+``` r
+# scatterplot
+ggplot(rgData, aes(x = Unemployment_rate, y = Median)) + geom_point() + 
+    geom_smooth(method = "lm", se = FALSE) + 
+    labs(title = "Is Salary Negatively Related to Unemployment Rate?", 
+         x = "Unemployment Rate", y = "Median Salary ($)")
+```
+
+![](RElizes_Tidyverse_College_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
+``` r
+# linear model
+sal_unemp <- lm(Median ~ Unemployment_rate, data = rgData)
+summary(sal_unemp)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Median ~ Unemployment_rate, data = rgData)
+    ## 
+    ## Residuals:
+    ##    Min     1Q Median     3Q    Max 
+    ## -17351  -7348  -3607   4913  67799 
+    ## 
+    ## Coefficients:
+    ##                   Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)          42958       2144  20.032   <2e-16 ***
+    ## Unemployment_rate   -41157      28747  -1.432    0.154    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 11440 on 171 degrees of freedom
+    ## Multiple R-squared:  0.01184,    Adjusted R-squared:  0.006066 
+    ## F-statistic:  2.05 on 1 and 171 DF,  p-value: 0.1541
+
+It appears that there is a slight negative relationship in the dataset.
+From the summary of the linear model, we can see that the slope of the
+regression line (the coefficient estimate for the unemployment rate) is
+-$41,157. This means that a 1% increase (+0.01) in the unemployment rate
+is associated with a decline of $412 in median salary, on average.
+However, this is not a terribly convincing model, since the unemployment
+coefficient is not statistically significant (high p-value of 15%), and
+the model \(R^2\) is negligible at 1%.
+
+Perhaps the expected relationship is weakened by salaries at the lower
+end of the income range, where entry-level salaries in lower-paying
+industries may be semi-static regardless of unemployment rates. In other
+words, there may be an effective floor on entry-level salaries, which
+mutes the response to unemployment rate. To see whether that’s the case,
+let’s redo the regresssion analysis after filtering the dataset for
+salaries above $40K.
+
+``` r
+# use only data with salaries > $40K
+rgData2 <- rgData %>% filter(Median > 40000)
+
+# scatterplot
+ggplot(rgData2, aes(x = Unemployment_rate, y = Median)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + 
+    labs(title = "Is Salary (>$40K) Negatively Related to Unemployment Rate?", x = "Unemployment Rate", y = "Median Salary ($)")
+```
+
+![](RElizes_Tidyverse_College_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+``` r
+# linear model
+sal_unemp2 <- lm(Median ~ Unemployment_rate, data = rgData2)
+summary(sal_unemp2)
+```
+
+    ## 
+    ## Call:
+    ## lm(formula = Median ~ Unemployment_rate, data = rgData2)
+    ## 
+    ## Residuals:
+    ##    Min     1Q Median     3Q    Max 
+    ## -14020  -6871  -2412   5098  54871 
+    ## 
+    ## Coefficients:
+    ##                   Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)          56020       3391  16.521   <2e-16 ***
+    ## Unemployment_rate   -48504      46015  -1.054    0.296    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 11270 on 55 degrees of freedom
+    ## Multiple R-squared:  0.0198, Adjusted R-squared:  0.00198 
+    ## F-statistic: 1.111 on 1 and 55 DF,  p-value: 0.2964
+
+Unfortunately this didn’t do much for us. The coefficient estimate for
+the unemployment rate is still not statistically significant (p-value of
+30%), and the model \(R^2\) is only 2%.
+
+The conclusion from this analysis is that, at first blush, the college
+majors dataset does not exhibit the expected inverse relationship
+between salaries and unemployment rates. This may be explained by the
+fact that recent graduates are typically in entry-level or early career
+jobs, for which salaries are not very responsive to changing economic
+conditions like unemployment rates.
 
 ## References
 
