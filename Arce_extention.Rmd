@@ -1,0 +1,41 @@
+---
+title: "Tidyverse extension of Amanda Arce entry"
+author: "A. Joshua Bentley"
+date: "December 6, 2018"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+```
+
+#Load in data from fivethirtyeight github page.
+
+Here I loaded in the Data in regards to alcohol comsumption in varies countries
+```{r}
+tidy <-read_csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/alcohol-consumption/drinks.csv")
+head(tidy)
+```
+
+
+# Bentley Extension
+
+Calculating the total amount of each type of alchol
+
+
+```{r extension}
+
+head(tidy)
+
+# create matrix of numeric columns
+
+alcohol_matrix <- select(tidy, beer_servings:total_litres_of_pure_alcohol)
+
+serve_sum <- summarise_all(alcohol_matrix, funs(sum))
+
+serve_mean <- summarise_all(alcohol_matrix, funs(mean))
+
+
+```
