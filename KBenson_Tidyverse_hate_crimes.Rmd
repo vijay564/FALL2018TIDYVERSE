@@ -1,0 +1,194 @@
+---
+title: "DATA 607 - Tidyverse: Hate Crimes"
+author: "Kevin Benson (Initial Author)"
+date: "December 5, 2018"
+output: 
+    html_document:
+        toc: TRUE
+        toc_float: TRUE
+        theme: lumen
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In this exercise, we use various tools from Tidyverse to analyze an interesting hate crimes dataset from FiveThirtyEight.  The ["Hate Crimes" data set](https://github.com/fivethirtyeight/data/tree/master/hate-crimes) includes the frequency of hate crimes for each state in the U.S., along with a variety of interesting socioeconomic indicators:
+
+* `median_household_income`: Median household income, 2016
+* `share_unemployed_seasonal`: Share of the population that is unemployed (seasonally adjusted), Sept. 2016
+* `share_population_in_metro_areas`: Share of the population that lives in metropolitan areas, 2015
+* `share_population_with_high_school_degree`: Share of adults 25 and older with a high-school degree, 2009
+* `share_non_citizen`: Share of the population that are not U.S. citizens, 2015
+* `share_white_poverty`: Share of white residents who are living in poverty, 2015
+* `gini_index`:	Gini Index, 2015
+* `share_non_white`: Share of the population that is not white, 2015
+* `share_voters_voted_trump`: Share of 2016 U.S. presidential voters who voted for Donald Trump
+* `hate_crimes_per_100k_splc`: Hate crimes per 100,000 population, Southern Poverty Law Center, Nov. 9-18, 2016
+* `avg_hatecrimes_per_100k_fbi`: Average annual hate crimes per 100,000 population, FBI, 2010-2015
+
+These indicators can be used as potential explanatory variables for regression analysis of state-by-state hate crime frequencies.  To begin, let's load the `tidyverse` and other packages.
+
+```{r message = FALSE}
+library(tidyverse)
+library(knitr)
+```
+
+## Data preparation
+
+First we load the dataset from the FiveThirtyEight GitHub repo, rename variables, and then review the data.
+
+```{r message = FALSE, cache = TRUE}
+
+url <- "https://raw.githubusercontent.com/fivethirtyeight/data/master/hate-crimes/hate_crimes.csv"
+df <- read_csv(url) %>% rename(inc = median_household_income,
+                               unemp = share_unemployed_seasonal,
+                               metro = share_population_in_metro_areas,
+                               HS = share_population_with_high_school_degree,
+                               nonUS = share_non_citizen,
+                               w_pov = share_white_poverty,
+                               gini = gini_index,
+                               non_w = share_non_white,
+                               trump = share_voters_voted_trump,
+                               hate1 = hate_crimes_per_100k_splc,
+                               hate = avg_hatecrimes_per_100k_fbi) 
+glimpse(df)
+```
+
+Reviewing the data, it appears that many of the variables are correlated.  For instance, from the correlation matrix, we can see that the following variable pairs are highly correlated:
+
+* `inc` and `w_pov`:    -82%
+* `hate1` and `hate`:   76%
+* `metro` and `nonUS`:  75%
+* `nonUS` and `non_w`:  73%
+* `trump` and `hate1`:  -66%
+* `inc` and `HS`:       65%
+* `nonUS` and `trump`:  -63%
+* `unemp` and `HS`:     -62%
+* `inc` and `trump`:    -60%
+* `HS` and `gini`:      -59%
+* `w_pov` and `trump`:  55%
+* `metro` and `trump`:  -57%
+
+```{r}
+# correlation matrix
+cor(df[ , 2:12], use = "pairwise.complete.obs") %>% round(3) %>% kable(caption = "Correlation matrix: full dataset")
+```
+
+Note how several variables are highly correlated to the `trump` variable, as we can see in the plot below.
+
+```{r}
+plot(df[ , c(2, 4, 6, 7, 10, 11)])
+```
+
+In order to simplify the analysis, let's remove redundant or highly correlated variables (having correlations >70%):
+
+* `hate1`: this is similar to the `hate` variable but measured around the time of the election; let's use `hate` as the response variable
+* `w_pov`: highly correlated to `inc`
+* `nonUS`: highly correlated to `metro`, `non_w`, and `trump`
+
+The relationships of highly correlated variable pairs can be visualized in the scatter plots below. 
+
+```{r warning = FALSE}
+# scatter plots of correlated variables
+ggplot(df, aes(x = hate1, y = hate)) + geom_point() + geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Correlated variables: `hate` and `hate1`") 
+ggplot(df, aes(x = inc, y = w_pov)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + 
+    labs(title = "Correlated variables: `w_pov` and `inc`")
+ggplot(df, aes(x = metro, y = nonUS)) + geom_point() + geom_smooth(method = "lm", se = FALSE) + 
+    labs(title = "Correlated variables: `nonUS` and `metro`")
+
+```
+
+After removing these variables, the remaining variables and correlation matrix appear as follows.
+
+```{r}
+# drop redundant variables
+df1 <- df %>% select(- c(6, 7, 11)) 
+df1
+# correlation matrix
+cor(df1[ , 2:9], use = "pairwise.complete.obs") %>% round(3) %>% kable(caption = "Correlation matrix: reduced dataset")
+plot(df1[ , 2:9])
+```
+
+## Exploratory data analysis
+
+### States with highest and lowest frequency of hate crimes
+
+Based on this dataset and the `hate` metric, the states (or D.C.) with the highest frequency of hate crimes are:
+
+* Washington, D.C.
+* Massachusetts
+* North Dakota
+* New Jersey
+* Kentucky
+
+```{r}
+df1 %>% arrange(desc(hate)) %>% head(10) %>% kable(caption = "States with highest rates of hate crimes")
+```
+
+The states with the lowest frequency of hate crimes are:
+
+* Wyoming
+* Georgia
+* Pennsylvania
+* Iowa
+* Mississippi
+
+```{r}
+df1 %>% arrange(hate) %>% head(10) %>% kable(caption = "States with lowest rates of hate crimes")
+```
+
+### Multiple linear regression model for frequency of hate crimes
+
+Using the reduced variable set, let construct a multiple linear regression model for the frequency of hate crimes.  This model is not terribly convincing, as the adjusted $R^2$ is only 37%, and several variables have high p-values.
+
+```{r}
+m1 <- lm(hate ~ inc + unemp + metro + HS + gini + non_w + trump, data = df1)
+summary(m1)
+```
+
+Let's do step-wise removal of a few variables to see if we can improve the model.  First we remove `unemp` (0.53 p-value).
+
+```{r}
+m2 <- lm(hate ~ inc + metro + HS + gini + non_w + trump, data = df1)
+summary(m2)
+```
+
+Second let's remove `inc` (0.64 p-value).
+
+```{r}
+m3 <- lm(hate ~  metro + HS + gini + non_w + trump, data = df1)
+summary(m3)
+```
+
+Next let's remove `metro` (0.55 p-value).  
+
+```{r}
+m4 <- lm(hate ~ HS + gini + non_w + trump, data = df1)
+summary(m4)
+```
+
+After removing 3 variables, the adjusted `R^2` has improved a few points to 40%.  Is there any improvement to be gained by dropping `non_w` and `trump`, which are both insignificant?
+
+```{r}
+m5 <- lm(hate ~ HS + gini, data = df1)
+summary(m5)
+```
+
+This appears to be the best we can do for the moment.  The adjusted $R^2$ is almost 41%, and the remaining variables of `HS` and `gini` are both significant.
+
+## Suggestions for further work
+
+Ideas to extend this work include:
+
+* Do a full step-wise regression analysis to rigorously determine the optimal variable set for the model.
+* Confirm that income inequality, as measured by the Gini coefficient, is the most important predictor variable for hate crimes (as indicated by the FiveThirtyEight article).
+* Assess whether the conditions for linear regression are satisfied, showing diagnostic plots:
+    + Linear relationship between the response variable and the explanatory variables
+    + Normally distributed residuals
+    + Constant variance of residuals
+    + Independent observations.
+

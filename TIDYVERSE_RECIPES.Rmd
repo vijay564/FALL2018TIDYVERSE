@@ -1,0 +1,64 @@
+---
+title: "TIDYVERSE RECIPE"
+author: "Corey Arnouts"
+date: "December 5, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Steps
+Load in the data
+Consolidate the columns where needed
+Eliminate unused columns
+Parse out the URL to capure additional information about the character
+
+
+
+#Load in Tidyverse
+```{r}
+library(tidyverse)
+```
+
+
+
+#LOAD IN THE DATA
+```{r}
+avengers_df <- read.csv('https://raw.githubusercontent.com/fivethirtyeight/data/master/avengers/avengers.csv')
+
+```
+
+#Convert the Death to Numbers and sum the deaths
+```{r}
+avengers_df$Death1 <- ifelse(avengers_df$Death1=="YES", 1, 0)
+avengers_df$Death2 <- ifelse(avengers_df$Death2=="YES", 1, 0)
+avengers_df$Death3 <- ifelse(avengers_df$Death3=="YES", 1, 0)
+avengers_df$Death4 <- ifelse(avengers_df$Death4=="YES", 1, 0)
+avengers_df$Death5 <- ifelse(avengers_df$Death5=="YES", 1, 0)
+
+avengers_df$Return1 <- NULL
+avengers_df$Return2 <- NULL
+avengers_df$Return3 <- NULL
+avengers_df$Return4 <- NULL
+avengers_df$Return5 <- NULL
+
+avengers_df$Deaths <- avengers_df$Death1 + avengers_df$Death2 + avengers_df$Death3 + avengers_df$Death4 + avengers_df$Death5 
+
+avengers_df$Death1 <- NULL
+avengers_df$Death2 <- NULL
+avengers_df$Death3 <- NULL
+avengers_df$Death4 <- NULL
+avengers_df$Death5 <- NULL
+
+
+```
+
+#separate out the URL to capture the world that the avenger belongs to
+```{r}
+avengers_df1 <- avengers_df %>% separate(URL, c("URL", "World"), sep = "_[[:punct:]]")
+
+avengers_df1$World<- gsub("[[:punct:]]", "", avengers_df1$World) 
+```
+

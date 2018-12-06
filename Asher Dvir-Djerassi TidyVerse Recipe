@@ -1,0 +1,35 @@
+---
+title: "TidyVerse"
+author: "Asher Dvir-Djerassi"
+date: "12/6/2018"
+output: html_document
+---
+```{r}
+#This exercise builds on the work of a former student who have worked on books in New York Times.
+#https://rpubs.com/qqz0117/434390
+
+#Load data from New York Times - Credit to  Corey Arnouts 
+options(stringsAsFactors = FALSE)
+library(jsonlite)
+library(httr)
+install.packages("DT")
+library(DT)
+
+#Load data from the new york times - Credit to  Corey Arnouts
+url <- "https://api.nytimes.com/svc/books/v3/lists/best-sellers/history.json"
+api.key <- readLines("https://raw.githubusercontent.com/crarnouts/CUNY-MSDS/master/NY_Times_API_Key")
+url <- paste0(url, '?api-key=', api.key)
+df <- fromJSON(url, flatten = TRUE)
+
+#Convert to a dataframe - Credit to Asher D. 
+df <- data_frame(datatable(df$results)); df
+
+#Convert rows that are null to zero using dplyr commands - - Credit to Asher D. 
+df[1:3,]<-0
+df[1:3,] <- sapply(df[1:3,], as.numeric)
+
+df[6,]<-0
+df[6,] <- sapply(df[6,], as.numeric)
+
+#Present df after conversion - - Credit to Asher D. 
+df

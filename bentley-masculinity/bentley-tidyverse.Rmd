@@ -1,0 +1,79 @@
+---
+title: "bentley tidyverse submission"
+author: "AJ Bentley"
+date: "November 27, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo=TRUE, messages = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+### Goal
+
+Using the fivethirtyeigth masculinity survey I'm going to use dplyr's select and recode_factor features.
+
+#### Load and examine data
+
+```{r read in data}
+
+raw <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/masculinity-survey/raw-responses.csv", header = TRUE)
+
+raw[1:10, 2:7]
+
+```
+
+#### Getting list of levels for Q1 (q0001)
+
+```{r check unique}
+
+levels(raw$q0001)
+
+```
+
+#### Creating a working df that excludes the first column of raw data (which is just indices)
+
+```{r create working df}
+
+# load required tidyverse library
+library(dplyr)
+
+refined <- select(raw, 2:98)
+
+```
+
+#### Recode factors in Q1 responses to numeric / ordered
+
+
+```{r change q1 to ordered}
+
+# create list of what we want the changes to be
+level_key <- list(`No answer` = 1, `Not at all masculine` = 2, `Not very masculine` = 3, `Somewhat masculine` = 4, `Very masculine` = 5)
+
+
+# apply the recode_factor code
+refined$q0001 <- recode_factor(refined$q0001, !!!level_key)
+
+# verify changes were made in column
+levels(refined$q0001)
+
+# verify changes were made in df
+raw[1:10, 2:7]
+
+```
+
+
+### Suggested Improvements
+
+Recode is far more complex than it needs be. There's no reason to have the list and recode functions be separate.
+
+
+### Potential steps for other students
+
+Obviously there are plenty of other opportunities to recode. 
+
+Other options would include creating dummy variables for columns that are factors but not ordered.
+
+
+
