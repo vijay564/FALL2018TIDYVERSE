@@ -1,0 +1,80 @@
+---
+title: "Tidyverse"
+author: "Anthony Pagan"
+date: "November 12, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Tidyverse collaboration Due December 5th
+
+* Use dataset from:
+    - https://github.com/fivethirtyeight.data
+
+* Create code with Dplyr windows functions. 
+
+* Collaborate through github by editing or extending another students code
+
+* Load to:
+    - https://github.com/acatlin/FALL2018TIDYVERSE
+
+## Data Selection
+
+* Data set selection: Hate Crimes changes in the United States
+
+    - https://github.com/fivethirtyeight/data/tree/master/hate-crimes
+    
+## Load Data
+    
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+hatecrimes<-data.frame(read.csv(file = 'https://raw.githubusercontent.com/fivethirtyeight/data/master/hate-crimes/hate_crimes.csv', header = TRUE, sep= ",", stringsAsFactors = FALSE))
+```
+
+##Plyr Manipulation 
+    * Rename columns
+    * Mutate and add new columns
+    * Arrange Data
+
+```{r message=FALSE, warning=FALSE}
+orderhc <-hatecrimes %>%
+    rename(avg_hc_per_yr=avg_hatecrimes_per_100k_fbi)%>%
+    rename(hc_8days = hate_crimes_per_100k_splc)%>%
+    mutate(avg_hc_per_yr_8days  = (avg_hc_per_yr*(8/365)))%>%
+    mutate(percent_change = (hc_8days/avg_hc_per_yr_8days-1)*100)%>%
+    mutate(avg_8days_sd = (hc_8days-avg_hc_per_yr_8days)/sd(complete.cases(avg_hc_per_yr_8days)))%>%
+    arrange(desc(percent_change))
+```
+
+
+##Plots and Statistics
+
+```{r message=FALSE, warning=FALSE}
+hist(orderhc$median_household_income)
+hist(orderhc$avg_8days_sd)
+
+plot(orderhc$share_voters_voted_trump,orderhc$hc_8days)
+plot(orderhc$gini_index,orderhc$percent_change)
+plot(orderhc$percent_change,orderhc$median_household_income)
+
+ orderhc%>%
+    ggplot(aes(state, percent_change, fill = percent_change))+
+    geom_bar(stat = "identity")+
+    ylab("percent Change") +
+    coord_flip()
+
+summary(orderhc)
+hclm<-lm(hc_8days~percent_change, complete.cases(TRUE), data=orderhc)
+summary(hclm)
+coefficients(hclm)
+anova(hclm)
+confint(hclm, level=.95)
+plot(hclm)
+sigma(hclm)
+```
+
+
