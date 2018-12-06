@@ -1,0 +1,208 @@
+---
+title: "TidyVerse - AHCA Polls"
+author: "Mikhail Groysman"
+date: "November 21, 2018"
+output:  
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_depth: 2
+---
+
+# AHCA Polls
+
+## Data source
+
+https://github.com/fivethirtyeight/data/blob/master/ahca-polls/ahca_polls.csv
+
+Collection of AHCA polls extracted from different websites.
+
+## Load Libraries
+
+```{r load-libraries, eval=TRUE, message=FALSE, warning=FALSE}
+
+#install.packages("ggplot2")
+#install.packages("tidyverse")
+#install.packages("factoextra")
+#install.packages("reshape") 
+library(reshape)
+library(stringr)
+library(XML)
+library(RCurl)
+library(RJSONIO)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+options(knitr.table.format = "html")
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra)
+options(stringsAsFactors = FALSE)
+
+```
+
+## Introduction.
+
+The data in GitHub contains summary of AHSA repeal polls.We want to do simple cleaning and analysis of the data.
+
+## Read CSV file.
+
+* Add "others" collumn (people who did not either oppose or favor the repeal. I assume these individuals had no opinion).
+
+* Fix typoes.
+
+* Fix dates.
+
+* Calculate days per poll.
+
+* There was a mistake in one of the record. Pollster name was recorded incorrectly.
+
+* Calculate length of poll question.
+
+* Run summary function for dataframe.
+
+```{r - data load}
+
+polls<-read.csv(file='https://raw.githubusercontent.com/fivethirtyeight/data/master/ahca-polls/ahca_polls.csv', header=TRUE, sep=",")
+
+polls$Others<-100-(polls$Favor+polls$Oppose)
+
+polls$Pollster[polls$Pollster == "Qunnipiac"] <- "Quinnipiac"
+
+polls$Pollster[polls$Pollster == 'YouGov' & polls$End=='5/13/17'] <- 'Economist/YouGov'
+
+polls$StartD<-as.Date(polls$Start,"%m/%d/%y")
+
+polls$EndD<-as.Date(polls$End,"%m/%d/%y")
+
+polls$days <-as.numeric(polls$EndD-polls$StartD+1)
+
+polls$newpoll = str_wrap(polls$Pollster, width = 10)
+
+polls$textlen<-str_length(polls$Text)
+
+summary(polls)
+
+```
+
+## Basic Plots.
+
+* Distribution of polls. Quinnipiac and YouGov are the most common - 20% of all polls each.
+
+* Favor/Oppose/Others/Spread/Days by Pollster. Favor - max Morning Consult(38%), while min Quinnipiac(19.333(3)). Oppose varries from 45.5 for Morning Consult to 58.333(3) for Quinnipiac. Others varries from 13% for Monmouth to 29% for NBC. Spread (difference between Oppose and Favor) varies from 7.5% for Morning Consult to 39% for Quinnipiac. Days per poll ranges from 4 to 8.
+
+* If we look at the polls by date, it is hard to see clear pattern. But we can see that results by different Pollster is consistent.
+
+* All our variables seem to be distributed not normally, except for non-responders.
+
+* There seems to be no strong correlation between length of poll question and favorable/unfavorable repsonse.
+
+
+```{r}
+
+pollfreq<-prop.table(table(polls$newpoll))
+
+barplot(pollfreq, xlab="Pollsters", ylab="% of Total", main="% of Polls by Pollster")
+
+AveByPollster<-polls %>% group_by(newpoll) %>% summarise(avgF = mean(Favor),avgOpp= mean(Oppose),avgOth= mean(Others), avgD=mean(days),avgL=mean(textlen)) 
+
+AveByPollster$spread<-AveByPollster$avgOpp-AveByPollster$avgF
+
+ggplot(AveByPollster, aes(x=reorder(newpoll,avgF), y=avgF)) + geom_point()+ggtitle("Plot of Favorable Response") + labs(x = "Pollsters", y="Favor to repeal")
+
+ggplot(AveByPollster, aes(x=reorder(newpoll,avgOpp), y=avgOpp)) + geom_point()+ggtitle("Plot of Opposing Response") + labs(x = "Pollsters", y="Oppose to repeal")
+
+ggplot(AveByPollster, aes(x=reorder(newpoll,avgOth), y=avgOth)) + geom_point()+ggtitle("Plot of No Response") + labs(x = "Pollsters", y="No response")
+
+ggplot(AveByPollster, aes(x=reorder(newpoll,spread), y=spread)) + geom_point()+ggtitle("Plot of DIfference between Favorable and Unfavorable Responses") + labs(x = "Pollsters", y="Difference between favor and oppose to repeal")
+
+AveByPollster1<-select(AveByPollster,newpoll,avgF,avgOpp,avgOth)
+
+AveByPollster1 <- as.data.frame(AveByPollster1)
+
+AveByPollster2<-melt(AveByPollster1,id = c("newpoll"))
+
+ggplot(AveByPollster2, aes(fill=variable, y=value, x=newpoll)) + geom_bar( stat="identity", position="fill")+ggtitle("Barchart of Reponses by Pollster") + labs(x = "Pollsters", y="Distribution of reposnses")
+
+ggplot(AveByPollster, aes(x=reorder(newpoll,avgD), y=avgD)) + geom_point()+ggtitle("Plot of Days of Polling") + labs(x = "Pollsters", y="Days of polling")
+
+ggplot(AveByPollster, aes(x=reorder(newpoll,avgL), y=avgL)) + geom_point()+ggtitle("Plot of Poll Question Length") + labs(x = "Pollsters", y="Length of question")
+
+ggplot(AveByPollster, aes(x=avgF, y=avgL)) + geom_point()+ggtitle("Plot of Dependency of Poll Question Length and Favorable Response")  + labs(x = "Favorable response", y="Length of question")
+
+qplot(polls$StartD, polls$Favor,geom=c("point", "line"),colour = polls$newpoll, main="Plot of Date of Polling vs Favorable Response", xlab="Date of Polling", ylab="Favorable Reponse")
+
+x <- AveByPollster[2:4]
+
+y <- AveByPollster[6]
+
+cor(x, y)
+
+library("ggpubr")
+ggdensity(polls$Favor, 
+          main = "Density plot of favorable response to a poll",
+          xlab = "Favorable response to a poll")
+
+
+library("ggpubr")
+ggdensity(polls$Oppose, 
+          main = "Density plot of opposing response to a poll",
+          xlab = "Opposing response to a poll")
+
+
+library("ggpubr")
+ggdensity(polls$Others, 
+          main = "Density plot of no response to a poll",
+          xlab = "No response to a poll")
+
+
+library("ggpubr")
+ggdensity(polls$days, 
+          main = "Density plot of length of a poll(days)",
+          xlab = "Length of a poll(days)")
+
+library("ggpubr")
+ggdensity(polls$textlen, 
+          main = "Density plot of length of question of a poll",
+          xlab = "Length of question of a poll")
+```
+
+## Cluster Analysis.
+
+Morning consult, Keiser Family, and Monmouth got clustered together, while all other pollsters got clustered seperetly (I have only attempted to create 2 different clusters).
+
+```{r - cluster}
+
+pollcluster<-select(polls,newpoll, Start, Favor, Oppose, Others, days, textlen)
+
+pollcluster<-unite(pollcluster,ncol,c(1:2))
+
+pollcluster
+
+row.names(pollcluster)<-pollcluster[,1]
+
+pollcluster1 <- scale(pollcluster[-1])
+
+pollcluster1
+
+distance <- get_dist(pollcluster1)
+
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+k2 <- kmeans(pollcluster1, centers = 2, nstart = 25)
+
+str(k2)
+
+fviz_cluster(k2, data = pollcluster1)
+
+```
+
+## Conclusion.
+
+* The main conclusion is obvious - majority of Americans oppose to the repeal of Obamacare.
+
+* However, data collected in our file is very limited. It does not have sample size. It does not have breakdown by different demographics. So, next step should be pulling additional data from the website provided in the file.
+
+* It would be also interesting to understand wide range of results coming from different pollsters. Would the reason for discrepency be the way poll question was asked or is it error due to poll size or the way sample population was chosen?
+
