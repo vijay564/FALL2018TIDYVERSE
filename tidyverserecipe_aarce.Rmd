@@ -1,0 +1,48 @@
+---
+title: "tidyverse"
+author: "Amanda Arce"
+date: "December 2, 2018"
+output: html_document
+---
+#Tidyverse Recipes
+
+
+
+#Libraries
+
+#Tidyverse
+#dplyr
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+```
+
+#Load in data from fivethirtyeight github page.
+
+Here I loaded in the Data in regards to alcohol comsumption in varies countries
+```{r}
+tidy <-read_csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/alcohol-consumption/drinks.csv")
+
+tidy
+
+```
+To create this visualization, I chose to use ggplot which is part of the Tidyverse libarary
+
+The scatter plot reveals to us the serving of beer from different countries.
+```{r}
+tidy1 <- ggplot(data = tidy) +
+  geom_point(mapping = aes(x= tidy$country, y = tidy$beer_servings, color= tidy$total_litres_of_pure_alcohol))
+
+tidy1
+
+```
+
+```{r}
+tidy2 <- ggplot(data = tidy) +
+  geom_bar(mapping = aes(x = tidy$total_litres_of_pure_alcohol))
+          
+tidy2
+
+
+```
