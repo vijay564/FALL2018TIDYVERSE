@@ -1,0 +1,102 @@
+---
+runtime:  shiny
+title: "Embedding Shiny into RMarkdown"
+author: "Mike Silva"
+html_document:
+    theme: yeti
+    highlight: tango
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+```{r, echo=FALSE}
+# Preview V1 at https://mikesilva.shinyapps.io/top-rockers/
+```
+
+## Top Rockers
+
+
+Walt Hickey of FiveThirtyEight collected data from 25 classic rock stations operating in 30 of the largest metros for a week in June of 2014.  The data is made available to the public at https://github.com/fivethirtyeight/data/tree/master/classic-rock.
+
+```{r setup, cache=TRUE, echo=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(shiny)
+
+df <- read.csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/classic-rock/classic-rock-raw-data.csv")
+```
+
+This recipie create an interative document using *shiny* and the *dpylr* and *ggplot* packages from the tidyverse.  It will allow the user to visualize which artist/group get the most airtime.  They can decide how many artists to show and filter the list by the radio station.
+
+```{r shiny, echo=FALSE}
+theme_set(theme_classic())
+
+# Function to create the viz title
+get_title <-function(CALLSIGN){
+  switch(CALLSIGN,
+         KCFX={return("KCFX - Kansas City, MO")},
+         KGB ={return("KGB  - San Diego, CA")},
+         KGLK={return("KGLK - Houston, TX")},
+         KGON={return("KGLK - Portland, OR")},
+         KLOS={return("KLOS - Los Angeles, CA")},
+         KRFX={return("KRFX - Denver, CO")},
+         KSEG={return("KSEG - Sacramento, CA")},
+         KSHE={return("KSHE - St. Louis, MO")},
+         KSLX={return("KSLX - Phoenix, AZ")},
+         KUFX={return("KUFX - San Jose, CA")},
+         KZEP={return("KZEP - San Antonio, TX")},
+         KZOK={return("KZOK - Seattle, WA")},
+         KZPS={return("KZPS - Dallas/Fort Worth, TX")},
+         KZPS={return("KZPS - Dallas/Fort Worth, TX")},
+         WAXQ={return("WAXQ - New York City, NY")},
+         WBGG={return("WBGG - Ft. Lauderdale, FL")},
+         WBIG={return("WBIG - Washington, DC")},
+         WCSX={return("WCSX - Detroit, MI")},
+         WDVE={return("WDVE - Pittsburgh, PA")},
+         WLUP={return("WLUP - Chicago, IL")},
+         WMGK={return("WMGK - Philadelphia, PA")},
+         WNCX={return("WNCX - Cleveland, OH")},
+         WOFX={return("WOFX - Cincinnati, OH")},
+         WRFX={return("WRFX - Charlotte, NC")},
+         WXGL={return("WXGL - Tampa Bay, FL")},
+         WZLX={return("WZLX - Boston, MA")},
+         {return("All Stations in the Data Set")}
+  )
+}
+
+# Get the list of Radio Stations
+call_signs <- df %>%
+  select(CALLSIGN) %>%
+  arrange(CALLSIGN) %>%
+  unique() 
+call_signs <- c("All Stations", as.vector(call_signs$CALLSIGN))
+
+# Give the user a slider to pick how many artists to see.
+sliderInput("n", "Number of Artist:", 10, min = 5, max = 25)
+
+# Show the dropdown menu
+selectInput("c", label = "Radio Station", choices = call_signs)
+
+renderPlot({
+  # Wrangle the data
+  viz_data <- df %>%
+    rowwise() %>%
+    mutate(keep = ifelse(input$c=="All Stations", 1, ifelse(CALLSIGN == input$c, 1, 0))) %>%
+    ungroup() %>%
+    filter(keep == 1) %>%
+    group_by(ARTIST.CLEAN) %>%
+    summarise(Played = n()) %>%
+    top_n(input$n, Played) %>%
+    rename(Artist = ARTIST.CLEAN)
+  
+  g <- ggplot(viz_data, aes(reorder(Artist, Played), Played)) +
+    geom_bar(stat="identity", width = 0.5, fill="tomato2") + 
+    coord_flip() + 
+    labs(caption="Source: FiveThirtyEight", 
+         x = "Artist/Group Name",  
+         y = "Times Songs Played on the Radio", 
+         title = get_title(input$c))
+  print(g)
+})
+```
+
