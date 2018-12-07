@@ -1,0 +1,89 @@
+---
+title: "Tidyverse Contribution - Fine Tuned Sampling with Recursive Base Function and Dplyr "
+output: html_notebook
+author: Jack Russo
+data: 12-3-2018
+---
+
+# Titanic Demo Dataset
+
+```{r include=FALSE}
+readme = readLines("https://raw.githubusercontent.com/Pieceofthepy/CUNY_SPS_RFDS_Bridge_Datasets/master/doc/carData/TitanicSurvival.html")
+```
+
+```{r echo=FALSE}
+readme[43:44];readme[51];readme[57]
+```
+
+Below you can find a summary of the data and the cases.
+
+```{r setup, echo=TRUE, results='hide', warning=FALSE, message=FALSE}
+# load data
+x = url("https://raw.githubusercontent.com/Pieceofthepy/CUNY_SPS_RFDS_Bridge_Datasets/master/csv/carData/TitanicSurvival.csv")
+y <- read.csv(x)
+```
+
+```{r echo=FALSE}
+head(y);summary(y)
+```
+
+One issue with this data is that it contains a notable proportion of the estimated total population, 
+```{r echo=FALSE}
+paste("about", nrow(y)/2224, "percent")
+```
+
+In order to establish a causal relationship, the observations need to be independent and normaly distributed. This would require a sample of less then ten percent of the population. However we can only access the available data which allready acts as a sample. Another random sample could be taken from the existing sample, but it's important to remember that sample would be biased because it's not drawn from the whole population. To correct for this, we will draw a random sample of less then ten percent of the estimated total population. This sample will include aproximately equal proportions of each level and a normaly distributed age varriable.   
+
+# One Stop Data Preperation
+
+Sample equal observations of each passenger class. Then sample equal observations of male and female passengers for a total of less then ten percent of the population. The following function will recursively loop until it meets the spesified conditons for independence and normality. 
+
+```{r include=FALSE}
+# Loads Packages
+usePackage <- function(p) {
+    if (!is.element(p, installed.packages()[,1]))
+        install.packages(p, dep = TRUE)
+    require(p, character.only = TRUE)
+}
+```
+
+```{r warning=FALSE}
+# Please ensure your computer can handle atleast 15000 recursions before runing this block.
+usePackage("dplyr")
+options(expressions=15000)
+section_sample = function(){
+ ysamp <- y %>% na.omit() %>% group_by(passengerClass) %>% sample_n(size = length(y$passengerClass[y$passengerClass == "2nd"]), replace = TRUE) %>% group_by(sex) %>% sample_n(size = 110) 
+ # Recode Varriables 
+
+ #survived
+ ysamp$survived <- as.numeric(ysamp$survived) - 1
+ ysamp$survived <- as.numeric(paste(ysamp$survived))
+
+ #sex
+ ysamp$sex <- (as.numeric(ysamp$sex) - 2)*-1
+ ysamp$sex <- (as.numeric(paste(ysamp$sex)))
+ 
+ #age as fraction of maxium observation
+ ysamp$age <- as.numeric(paste(ysamp$age))/max(as.numeric(paste(ysamp$age)))
+ ysamp$age <- as.numeric(paste(ysamp$age))
+ 
+ #passengerClass
+ ysamp$passengerClass <- (as.numeric(ysamp$passengerClass) - 2)*-1
+ ysamp$passengerClass <- as.numeric(paste(ysamp$passengerClass))
+ 
+ # Normality and Proportion
+ st = shapiro.test(ysamp$age)
+ Pass_Class = sum(ysamp$passengerClass)/length(ysamp$passengerClass)
+ 
+ ifelse(st$p.value > .01 | Pass_Class > .05 , section_sample(), return(ysamp))
+}
+ysamp <- section_sample()
+```
+
+# Review Fine Tuned Sample
+
+```{r}
+head(ysamp);tail(ysamp)
+```
+
+Our data is now ready for regression analysis!
