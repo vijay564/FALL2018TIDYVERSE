@@ -1,0 +1,58 @@
+---
+title: "Tidyverse_Recipies"
+author: "Vijaya Cherukuri"
+date: "December 12, 2018"
+output:
+html_document:
+    toc: true
+    toc_float: true
+    smooth_scroll: true
+    theme: cosmo
+    highlight: pygments
+---
+
+#**Title- Tidyverse Recipies**
+
+##**Introduction**
+>In this assignment we are trying some Tidyverse recipies. As part of this i would like to use unnest() function in tidyverse. 
+##**Load Libraries**
+```{r}
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+```
+
+##**unnest ()**
+
+### Unnest is used when you want to make each list element its own row from a column with lists of items
+unnest (data, ..., .drop = NA, .id = NULL, .sep = NULL, .preserve = NULL)
+
+data - a data frame.
+... - the columns to unnest; defaults to all list-columns
+.drop - whether additional list columns should be dropped
+.id - data frame identifier; creates a new column with the name .id, giving a unique identifier.
+.sep - identify a separator to use in the names of unnested data frame columns, which combine the name of the original list-col with the names from nest data frame
+.preserve - list-columns to preserve in the output
+
+##**Example**
+
+```{r}
+biopics <- read_csv("https://raw.githubusercontent.com/vijay564/R-Maincode/master/tidyverse_recipies.csv") %>% 
+    # Filter the "directors" column for entries that contain a comma -- that have more than one name
+    filter(str_detect(director, ".\\,.")) %>%
+    # Select a few columns of the dataframe for demonstration purposes
+    select(title, country, director)           
+head(biopics, 3) %>% 
+    kable("html")  %>% 
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+# Unnest the "directors" col-list twice along two different separators
+dir_unnest <- unnest(biopics, director = strsplit(director, ",")) %>% 
+    unnest(director = strsplit(director, ":"))
+# Remove the pattern of a space and the word "With"            
+dir_unnest$director <- str_replace(dir_unnest$director, "[[:space:]]With", "")
+head(dir_unnest, 8) %>% 
+    kable("html")  %>% 
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+```
